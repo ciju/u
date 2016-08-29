@@ -1,10 +1,10 @@
-# μ
+# μ [![Build Status](https://travis-ci.org/ananthakumaran/u.svg?branch=master)](https://travis-ci.org/ananthakumaran/u)
 
 Without μ:
 `http://app.com/url#%7B%22lookingFor%22:%22bride%22,%22age%22:%5B25,30%5D,%22religion%22:%22Hindu%22,%22motherTongue%22:%22Bengali%22,%22onlyProfileWithPhoto%22:true%7D`
 
 With μ:
-`http://app.com/url#abaNc9I-aqa`
+`http://app.com/url#bHhc9I-aqa`
 
 μ is a JavaScript library for encoding/decoding state (JavaScript
 object) in URL. Define a spec for the state, based on which the
@@ -21,7 +21,7 @@ Define the spec.
 ```javascript
 var spec = {
         lookingFor: ['oneOf', 'bride', 'groom'],
-        age: ['array', ['integer'] /* min */, ['integer'] /* max */],
+        age: ['tuple', ['integer'] /* min */, ['integer'] /* max */],
         religion: ['oneOf', 'Hindu', 'Muslim', 'Christian', 'Sikh', 'Parsi', 'Jain', 'Buddhist', 'Jewish', 'No Religion', 'Spiritual', 'Other'],
         motherTongue: ['oneOf', 'Assamese', 'Bengali', 'English', 'Gujarati', 'Hindi', 'Kannada', 'Konkani', 'Malayalam', 'Marathi', 'Marwari', 'Odia', 'Punjabi', 'Sindhi', 'Tamil', 'Telugu', 'Urdu'],
         onlyProfileWithPhoto: ['boolean']
@@ -34,7 +34,7 @@ Encode the object/state.
 
 ```javascript
 var encodedv1 = encode(v1, {lookingFor: 'bride', age: [25, 30], religion: 'Hindu', motherTongue: 'Bengali', onlyProfileWithPhoto: true});
-//=> 'abaNc9I-aqa'
+//=> 'bHhc9I-aqa'
 decode([v1], encodedv1) //=> {lookingFor: 'bride', age: [25, 30], religion: 'Hindu', motherTongue: 'Bengali', onlyProfileWithPhoto: true});
 ```
 
@@ -52,7 +52,7 @@ var v2 = fromJson(2, newSpec, function (old) {
 
 decode([v1, v2], encodedv1) //=> {lookingFor: 'bride', age: [25, 30], religion: 'Hindu', motherTongue: 'Bengali', onlyProfileWithPhoto: true, maritialStatus: "Doesn't Matter"});
 var encodedv2 = encode(v2, {lookingFor: 'bride', age: [25, 30], religion: 'Hindu', motherTongue: 'Bengali', onlyProfileWithPhoto: true, maritialStatus: 'Never Married'});
-//=> 'acaRc9I-aHaa'
+//=> 'cHlc9I-aHaa'
 decode([v1, v2], encodedv2) //=> {lookingFor: 'bride', age: [25, 30], religion: 'Hindu', motherTongue: 'Bengali', onlyProfileWithPhoto: true, maritialStatus: 'Never Married'});
 ```
 
@@ -65,8 +65,8 @@ decode([v1, v2], encodedv2) //=> {lookingFor: 'bride', age: [25, 30], religion: 
 
 *structure*  
 object is defined using { key: specForValue, ... }  
-array is defined using
-['array', specForValueAtIndexZero, specForValueAtIndexOne, ...]  
+array is defined using ['array', specForValue ]  
+tuple is defined using ['tuple', specForValueAtIndexZero, specForValueAtIndexOne, ...]  
 
 *domain*  
 domain is defined using [domainName, arg1, arg2, ...]
@@ -77,7 +77,7 @@ domain is defined using [domainName, arg1, arg2, ...]
 | integer |     | any integer |
 | boolean |     | true or false |
 | fixedchar | Size of the string | fixed length string |
-| varchar | Maximum size of the string | variable length string |
+| varchar | | variable length string |
 
 **migrate** - a function that will get called in case where you decode
 an object encoded using older spec. For example, there are three

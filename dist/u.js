@@ -59,7 +59,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	Object.defineProperty(exports, "__esModule", {
 	  value: true
 	});
-	exports.decode = exports.encode = exports.fromJson = undefined;
+	exports.register = exports.decode = exports.encode = exports.fromJson = undefined;
 
 	var _coder = __webpack_require__(1);
 
@@ -81,6 +81,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	    return _coder.decode;
 	  }
 	});
+	Object.defineProperty(exports, "register", {
+	  enumerable: true,
+	  get: function get() {
+	    return _coder.register;
+	  }
+	});
 
 	__webpack_require__(123);
 
@@ -95,6 +101,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	__webpack_require__(128);
 
 	__webpack_require__(135);
+
+	__webpack_require__(136);
 
 /***/ },
 /* 1 */
@@ -142,6 +150,8 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var _find2 = _interopRequireDefault(_find);
 
+	var _slicedToArray = function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; }();
+
 	Object.defineProperty(exports, "__esModule", {
 	    value: true
 	});
@@ -166,12 +176,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var bits = _coder$spec$encode.bits;
 	    var blob = _coder$spec$encode.blob;
 
-	    return coder.encodedVersion + (0, _core.paddedN)(bits.length, 2) + (0, _core.bitsToN)(bits) + blob;
+	    return coder.encodedVersion + (0, _core.toVarN)(bits.length) + (0, _core.bitsToN)(bits) + blob;
 	}
 
 	function decode(coders, string) {
-	    var version = (0, _core.fromN)(string.substr(0, 2)),
-	        bitSize = (0, _core.fromN)(string.substr(2, 2));
+	    var version, bitSize;
+
+	    var _fromVarN = (0, _core.fromVarN)(string);
+
+	    var _fromVarN2 = _slicedToArray(_fromVarN, 2);
+
+	    version = _fromVarN2[0];
+	    string = _fromVarN2[1];
+
+	    var _fromVarN3 = (0, _core.fromVarN)(string);
+
+	    var _fromVarN4 = _slicedToArray(_fromVarN3, 2);
+
+	    bitSize = _fromVarN4[0];
+	    string = _fromVarN4[1];
 
 	    var coder = (0, _find2.default)(coders, function (c) {
 	        return c.version === version;
@@ -181,8 +204,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 
 	    var bitCharSize = Math.ceil(bitSize / 6);
-	    var bits = (0, _core.nToBits)(string.substr(4, bitCharSize), bitSize);
-	    var blob = string.substr(4 + bitCharSize);
+	    var bits = (0, _core.nToBits)(string.substr(0, bitCharSize), bitSize);
+	    var blob = string.substr(bitCharSize);
 	    var result = coder.spec.decode({ bits: bits, blob: blob });
 	    var pendingMigrations = (0, _sortBy2.default)((0, _filter2.default)(coders, function (coder) {
 	        return coder.version > version;
@@ -196,8 +219,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	    function loop(spec) {
 	        if ((0, _isArray2.default)(spec)) {
 	            var method = spec[0];
-	            if (method === 'array') {
-	                return availableTypes.array((0, _map2.default)((0, _tail2.default)(spec), loop));
+	            if (method === 'tuple') {
+	                return availableTypes.tuple((0, _map2.default)((0, _tail2.default)(spec), loop));
+	            } else if (method === 'array') {
+	                return availableTypes.array(loop(spec[1]));
 	            } else {
 	                return availableTypes[method].apply(null, (0, _tail2.default)(spec));
 	            }
@@ -213,7 +238,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        version: version,
 	        spec: loop(jsonSpec),
 	        jsonSpec: jsonSpec,
-	        encodedVersion: (0, _core.paddedN)(version, 2),
+	        encodedVersion: (0, _core.toVarN)(version),
 	        migrate: migrate || function (x) {
 	            return x;
 	        }
@@ -4400,6 +4425,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.concat = concat;
 	exports.toN = toN;
 	exports.fromN = fromN;
+	exports.fromVarN = fromVarN;
+	exports.toVarN = toVarN;
 	exports.paddedN = paddedN;
 	exports.bitsToN = bitsToN;
 	exports.nToBits = nToBits;
@@ -4444,7 +4471,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 
 	    var result = '';
-	    while (x > base) {
+	    while (x >= base) {
 	        result = availableCharacters[x % base] + result;
 	        x = Math.floor(x / base);
 	    }
@@ -4466,6 +4493,36 @@ return /******/ (function(modules) { // webpackBootstrap
 	    return x;
 	}
 
+	function fromVarN(string) {
+	    var str = string;
+	    var value = 0;
+	    var hasMore = true;
+	    while (hasMore) {
+	        if (str.length === 0) {
+	            throw new Error('Invalid number: can\'t decode ' + string);
+	        }
+	        var byte = str[0];
+	        str = str.substr(1);
+	        var n = fromN(byte);
+	        hasMore = n > 31;
+	        value = value << 5 | n & 31;
+	    }
+	    return [value, str];
+	}
+
+	function toVarN(n) {
+	    var result = '';
+	    var charsRequired = Math.ceil(bitsRequired(n) / 5);
+	    var bits = paddedBinary(n, charsRequired * 5);
+	    while (bits) {
+	        var part = bits.substr(0, 5);
+	        bits = bits.substr(5);
+	        part = (bits.length === 0 ? '0' : '1') + part;
+	        result += bitsToN(part);
+	    }
+	    return result;
+	}
+
 	function paddedN(x, charSize) {
 	    var r = toN(x);
 	    if (r.length > charSize) {
@@ -4476,18 +4533,19 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 
 	function bitsToN(bits) {
-	    if (bits === '') {
-	        return '';
+	    var result = '',
+	        char;
+	    while (bits) {
+	        char = bits.substr(0, 6);
+	        bits = bits.substr(6);
+
+	        if (char.length < 6) {
+	            char += (0, _repeat2.default)('0', 6 - char.length);
+	        }
+	        result += toN(parseInt(char, 2));
 	    }
 
-	    var char = bits.substr(0, 6);
-	    bits = bits.substr(6);
-
-	    if (char.length < 6) {
-	        char += (0, _repeat2.default)(0, 6 - char.length);
-	    }
-
-	    return toN(parseInt(char, 2)) + bitsToN(bits);
+	    return result;
 	}
 
 	function nToBits(chars, bitSize) {
@@ -4669,6 +4727,8 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	"use strict";
 
+	var _slicedToArray = function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; }();
+
 	Object.defineProperty(exports, "__esModule", {
 	    value: true
 	});
@@ -4678,20 +4738,27 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var _coder = __webpack_require__(1);
 
-	function varchar(maxSize) {
-	    var bitSize = (0, _core.bitsRequired)(maxSize);
+	function varchar() {
 	    return {
 	        encode: function encode(string) {
-	            return { bits: (0, _core.paddedBinary)(string.length, bitSize), blob: string };
+	            return { bits: '', blob: (0, _core.toVarN)(string.length) + string };
 	        },
 	        decode: function decode(_ref) {
 	            var bits = _ref.bits;
 	            var blob = _ref.blob;
 
-	            var size = parseInt(bits.substr(0, bitSize), 2);
+	            var size;
+
+	            var _fromVarN = (0, _core.fromVarN)(blob);
+
+	            var _fromVarN2 = _slicedToArray(_fromVarN, 2);
+
+	            size = _fromVarN2[0];
+	            blob = _fromVarN2[1];
+
 	            return {
 	                value: blob.substr(0, size),
-	                rest: { bits: bits.substr(bitSize), blob: blob.substr(size) }
+	                rest: { bits: bits, blob: blob.substr(size) }
 	            };
 	        }
 	    };
@@ -4984,7 +5051,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	Object.defineProperty(exports, "__esModule", {
 	    value: true
 	});
-	exports.array = array;
+	exports.tuple = tuple;
 
 	var _core = __webpack_require__(121);
 
@@ -4992,7 +5059,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-	function array(entries) {
+	function tuple(entries) {
 	    return {
 	        encode: function encode(array) {
 	            return (0, _core.concat)((0, _map2.default)(entries, function (entry, i) {
@@ -5006,6 +5073,63 @@ return /******/ (function(modules) { // webpackBootstrap
 	                array[i] = result.value;
 	                rest = result.rest;
 	            });
+	            return { value: array, rest: rest };
+	        }
+	    };
+	}
+
+	(0, _coder.register)('tuple', tuple);
+
+/***/ },
+/* 136 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+
+	var _map = __webpack_require__(26);
+
+	var _map2 = _interopRequireDefault(_map);
+
+	var _slicedToArray = function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; }();
+
+	Object.defineProperty(exports, "__esModule", {
+	    value: true
+	});
+	exports.array = array;
+
+	var _core = __webpack_require__(121);
+
+	var _coder = __webpack_require__(1);
+
+	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+	function array(entry) {
+	    return {
+	        encode: function encode(array) {
+	            return (0, _core.concat)([{ blob: (0, _core.toVarN)(array.length) }].concat((0, _map2.default)(array, entry.encode)));
+	        },
+	        decode: function decode(_ref) {
+	            var bits = _ref.bits;
+	            var blob = _ref.blob;
+
+	            var size;
+
+	            var _fromVarN = (0, _core.fromVarN)(blob);
+
+	            var _fromVarN2 = _slicedToArray(_fromVarN, 2);
+
+	            size = _fromVarN2[0];
+	            blob = _fromVarN2[1];
+
+	            var rest = { bits: bits, blob: blob };
+	            var array = [],
+	                result,
+	                i;
+	            for (i = 0; i < size; i++) {
+	                result = entry.decode(rest);
+	                array[i] = result.value;
+	                rest = result.rest;
+	            }
 	            return { value: array, rest: rest };
 	        }
 	    };
